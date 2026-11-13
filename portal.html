@@ -83,7 +83,7 @@
     <p class="hint" id="syncStatus" style="margin-top:8px;"></p>
   </section>
 </main>
-<footer>Portal komen v2.1 &mdash; XTP &middot; Dibuat 14 Nov 2026</footer>
+<footer>Portal komen v2.2 &mdash; XTP &middot; Dibuat 14 Nov 2026</footer>
 <script>
 /*__EMBEDDED_DATA__*/
 function encodePayload(obj) {
@@ -261,6 +261,7 @@ if (typeof document !== 'undefined') {
     function kindLabel(it) {
       if (it.kind === 'op') return 'UTAS BARU';
       if (it.kind === 'chain') return 'RANTAI · KE-' + (it.step + 1);
+      if (it.kind === 'bio') return 'BIO';
       return 'KOMEN';
     }
     function itemsFor(u) {
@@ -327,7 +328,9 @@ if (typeof document !== 'undefined') {
           nl.className = 'nolink';
           nl.textContent = it.kind === 'op'
             ? 'Utas baru — tulis dari aplikasi Threads, lalu salin teksnya di bawah.'
-            : 'Link utas menyusul — buka utas yang baru diposting OP, lalu salin teksnya di bawah.';
+            : it.kind === 'bio'
+              ? 'Salin teks di bawah ini, lalu tempel di profil Threads.'
+              : 'Link utas menyusul — buka utas yang baru diposting OP, lalu salin teksnya di bawah.';
           wrap.appendChild(nl);
         }
         var crow = document.createElement('div');
