@@ -83,7 +83,7 @@
     <p class="hint" id="syncStatus" style="margin-top:8px;"></p>
   </section>
 </main>
-<footer>Portal komen v2 &mdash; XTP &middot; Dibuat 14 Nov 2026</footer>
+<footer>Portal komen v2.1 &mdash; XTP &middot; Dibuat 14 Nov 2026</footer>
 <script>
 /*__EMBEDDED_DATA__*/
 function encodePayload(obj) {
@@ -127,10 +127,10 @@ function parseSyncEvent(text, batchId) {
 }
 function applySyncEvents(doneObj, events, batchId, seenIds) {
   var changed = false;
-  var maxTime = 0;
+  var lastId = '';
   events.forEach(function (ev) {
     if (!ev) return;
-    if (typeof ev.time === 'number' && ev.time > maxTime) maxTime = ev.time;
+    if (ev.id) lastId = ev.id;
     if (seenIds[ev.id]) return;
     seenIds[ev.id] = true;
     var p = parseSyncEvent(ev.message, batchId);
@@ -139,7 +139,7 @@ function applySyncEvents(doneObj, events, batchId, seenIds) {
       if (!doneObj[p.key]) { doneObj[p.key] = true; changed = true; }
     } else if (doneObj[p.key]) { delete doneObj[p.key]; changed = true; }
   });
-  return { changed: changed, maxTime: maxTime };
+  return { changed: changed, lastId: lastId };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -164,31 +164,66 @@ if (typeof document !== 'undefined') {
     var done = {};
     var doneKey = '';
     var syncTopic = '';
-    var syncSince = 0;
+    var syncCursor = 'all';
     var syncSeen = {};
     var syncTimer = null;
+    var syncState = 'off';
+    var syncPending = {};
+    var syncFlushing = false;
 
-    function setSyncStatus(kind) {
+    function refreshSyncStatus() {
       if (!syncTopic) {
         syncStatusEl.textContent = 'Paket ini tidak sinkron antar-HP (dibuat sebelum fitur sinkron).';
-      } else if (kind === 'loading') {
+        return;
+      }
+      var n = Object.keys(syncPending).length;
+      if (n > 0) {
+        syncStatusEl.textContent = 'Sinkron antar-HP: ' + n + ' tanda menunggu terkirim\u2026';
+      } else if (syncState === 'loading') {
         syncStatusEl.textContent = 'Sinkron antar-HP: memuat\u2026';
-      } else if (kind === 'ok') {
+      } else if (syncState === 'ok') {
         syncStatusEl.textContent = 'Sinkron antar-HP: aktif \u2014 tanda di HP lain muncul di sini.';
-      } else if (kind === 'error') {
+      } else if (syncState === 'error') {
         syncStatusEl.textContent = 'Sinkron antar-HP: tidak terhubung \u2014 tanda hanya tersimpan di HP ini untuk sementara.';
       }
     }
-    function publishSync(itemIndex, isDone) {
+    function flushSync() {
+      if (!syncTopic || !payload || syncFlushing) return;
+      var keys = Object.keys(syncPending);
+      if (!keys.length) return;
+      syncFlushing = true;
+      refreshSyncStatus();
+      var chain = Promise.resolve();
+      keys.forEach(function (k) {
+        chain = chain.then(function () {
+          var want = syncPending[k];
+          return fetch('https://ntfy.sh/' + encodeURIComponent(syncTopic), {
+            method: 'POST',
+            body: syncEventBody(batchIdOf(payload), Number(k), want)
+          }).then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            if (syncPending[k] === want) delete syncPending[k];
+          });
+        });
+      });
+      chain.then(function () {
+        syncFlushing = false;
+        refreshSyncStatus();
+        if (Object.keys(syncPending).length) flushSync();
+      }).catch(function () {
+        syncFlushing = false;
+        refreshSyncStatus();
+        setTimeout(flushSync, 5000);
+      });
+    }
+    function queueSync(itemIndex, isDone) {
       if (!syncTopic || !payload) return;
-      fetch('https://ntfy.sh/' + encodeURIComponent(syncTopic), {
-        method: 'POST',
-        body: syncEventBody(batchIdOf(payload), itemIndex, isDone)
-      }).catch(function () {});
+      syncPending[itemIndex] = isDone;
+      flushSync();
     }
     function pollSync() {
       if (!syncTopic || !payload) return;
-      fetch('https://ntfy.sh/' + encodeURIComponent(syncTopic) + '/json?since=' + syncSince + '&poll=1')
+      fetch('https://ntfy.sh/' + encodeURIComponent(syncTopic) + '/json?since=' + encodeURIComponent(syncCursor) + '&poll=1')
         .then(function (res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.text();
@@ -200,15 +235,20 @@ if (typeof document !== 'undefined') {
             try { var o = JSON.parse(line); if (o && o.event === 'message') events.push(o); } catch (e) {}
           });
           var r = applySyncEvents(done, events, batchIdOf(payload), syncSeen);
-          if (r.maxTime > 0) syncSince = Math.max(syncSince, r.maxTime - 1);
+          if (r.lastId) syncCursor = r.lastId;
           if (Object.keys(syncSeen).length > 500) syncSeen = {};
           if (r.changed) { saveDone(); renderTabs(); renderList(); }
-          setSyncStatus('ok');
+          syncState = 'ok';
+          refreshSyncStatus();
+          flushSync();
         })
-        .catch(function () { setSyncStatus('error'); });
+        .catch(function () {
+          syncState = 'error';
+          refreshSyncStatus();
+        });
     }
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) pollSync();
+      if (!document.hidden) { pollSync(); flushSync(); }
     });
 
     function loadDone() {
@@ -328,7 +368,7 @@ if (typeof document !== 'undefined') {
           done[x.i] = !done[x.i];
           if (!done[x.i]) delete done[x.i];
           saveDone();
-          publishSync(x.i, !!done[x.i]);
+          queueSync(x.i, !!done[x.i]);
           renderTabs();
           renderList();
         });
@@ -346,8 +386,10 @@ if (typeof document !== 'undefined') {
       loadDone();
       if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
       syncTopic = String(p.syncTopic || '');
-      syncSince = 0;
+      syncCursor = 'all';
       syncSeen = {};
+      syncPending = {};
+      syncState = syncTopic ? 'loading' : 'off';
       modePill.textContent = syncTopic ? 'SYNC' : 'OFFLINE';
       var d = new Date(payload.created);
       var dateStr = isNaN(d.getTime()) ? payload.created : d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -356,7 +398,7 @@ if (typeof document !== 'undefined') {
       listWrap.hidden = false;
       renderTabs();
       renderList();
-      setSyncStatus(syncTopic ? 'loading' : 'off');
+      refreshSyncStatus();
       if (syncTopic) {
         pollSync();
         syncTimer = setInterval(pollSync, 20000);
@@ -372,7 +414,7 @@ if (typeof document !== 'undefined') {
       var keys = Object.keys(done).map(function (k) { return Number(k); });
       done = {};
       saveDone();
-      keys.forEach(function (k) { publishSync(k, false); });
+      keys.forEach(function (k) { queueSync(k, false); });
       renderTabs();
       renderList();
     });
