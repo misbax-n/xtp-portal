@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Komen — XTP</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: #F7F7F8; color: #1C1C1E; }
+  header { background: #fff; border-bottom: 1px solid #E4E4E7; padding: 16px 16px 0; position: sticky; top: 0; z-index: 10; }
+  .brand { max-width: 760px; margin: 0 auto; display: flex; gap: 12px; align-items: center; padding-bottom: 12px; }
+  .logo { width: 38px; height: 38px; flex: none; border-radius: 11px; background: #4A7FB5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0; font-size: 13px; color: #8A8A8E; }
+  .pill { font: 11px/1 ui-monospace, Menlo, Consolas, monospace; background: #E8EFF7; color: #4A7FB5; border-radius: 999px; padding: 3px 8px; vertical-align: 2px; margin-left: 6px; letter-spacing: 0.04em; }
+  #tabs { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
+  #tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 999px; border: 1px solid #D4D4D8; background: #fff; color: #3F3F46; cursor: pointer; white-space: nowrap; }
+  .tab small { font-weight: 400; color: #8A8A8E; margin-left: 4px; }
+  .tab.active { background: #4A7FB5; border-color: #4A7FB5; color: #fff; }
+  .tab.active small { color: #D8E5F1; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px 14px 40px; }
+  section { background: #fff; border: 1px solid #E4E4E7; border-radius: 18px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  label { font-size: 13px; font-weight: 600; display: block; margin: 12px 0 6px; color: #3F3F46; }
+  textarea { width: 100%; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; padding: 10px 12px; border: 1px solid #D4D4D8; border-radius: 12px; background: #fff; color: #1C1C1E; min-height: 110px; resize: vertical; }
+  textarea:focus { outline: none; border-color: #4A7FB5; }
+  button { font-size: 14px; padding: 10px 18px; border-radius: 999px; border: 1px solid #D4D4D8; background: #fff; color: #1C1C1E; cursor: pointer; }
+  button.primary { background: #4A7FB5; border-color: #4A7FB5; color: #fff; font-weight: 600; }
+  button:active { transform: translateY(1px); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .row.between { justify-content: space-between; }
+  .hint { font-size: 12px; color: #8A8A8E; margin-top: 8px; }
+  .status { font-size: 13px; margin-top: 10px; min-height: 18px; color: #8A8A8E; }
+  .item { border: 1px solid #E4E4E7; border-radius: 16px; padding: 12px 14px; margin-bottom: 12px; background: #fff; }
+  .item.done { opacity: 0.55; }
+  .item.done .ctext { text-decoration: line-through; }
+  .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .idx { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 50%; background: #4A7FB5; color: #fff; font-size: 12px; font-weight: 700; }
+  .badge { font: 11px/1 ui-monospace, Menlo, Consolas, monospace; background: #E8EFF7; color: #4A7FB5; border-radius: 999px; padding: 4px 9px; letter-spacing: 0.04em; }
+  .gap { font-size: 12px; color: #8A8A8E; }
+  a.openlink { display: block; text-align: center; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 16px; border-radius: 999px; background: #4A7FB5; color: #fff; margin-bottom: 10px; }
+  a.openlink:active { transform: translateY(1px); }
+  .nolink { font-size: 13px; color: #8A8A8E; background: #F4F4F5; border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; }
+  .crow { display: flex; gap: 10px; align-items: flex-start; }
+  .ctext { flex: 1; min-width: 0; font: 13px/1.6 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; color: #3F3F46; background: #FAFAFA; border: 1px solid #F0F0F0; border-radius: 12px; padding: 10px 12px; user-select: text; -webkit-user-select: text; }
+  .btnCopy { flex: none; padding: 10px 16px; font-weight: 600; }
+  .btnCopy.ok { background: #E8EFF7; border-color: #4A7FB5; color: #4A7FB5; }
+  .btnDone { margin-top: 10px; padding: 8px 16px; font-size: 13px; }
+  .btnDone.on { background: #4A7FB5; border-color: #4A7FB5; color: #fff; font-weight: 600; }
+  .empty { color: #8A8A8E; font-size: 13px; }
+  footer { text-align: center; font-size: 12px; color: #A1A1AA; padding: 0 14px 24px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">&#10003;</div>
+    <div>
+      <h1>Portal Komen<span class="pill">OFFLINE</span></h1>
+      <p id="batchInfo">Belum ada paket tugas.</p>
+    </div>
+  </div>
+  <nav id="tabs" hidden></nav>
+</header>
+<main>
+  <section id="emptyState">
+    <h2>Tempel paket dari generator</h2>
+    <p class="empty" style="margin-top:0;">Buka link portal dari generator, atau tempel payload paket di bawah ini.</p>
+    <textarea id="pasteBox" placeholder="Tempel payload paket (teks acak panjang) atau link portal lengkap di sini..."></textarea>
+    <div class="row">
+      <button class="primary" id="btnLoad">Muat paket</button>
+    </div>
+    <p class="status" id="statusEmpty"></p>
+    <p class="hint">Data paket tidak keluar dari perangkat ini. Tanda "selesai" tersimpan per HP.</p>
+  </section>
+  <section id="listWrap" hidden>
+    <div id="list"></div>
+    <div class="row between">
+      <span class="hint" id="progressText" style="margin-top:0;"></span>
+      <button id="btnResetDone">Reset tanda selesai</button>
+    </div>
+  </section>
+</main>
+<footer>Portal komen v1 &mdash; XTP &middot; Dibuat 13 Nov 2026</footer>
+<script>
+/*__EMBEDDED_DATA__*/
+function encodePayload(obj) {
+  var json = JSON.stringify(obj);
+  var b64 = btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function decodePayload(str) {
+  var s = String(str || '').trim();
+  var m = s.match(/#p=([A-Za-z0-9\-_]+)/);
+  if (m) s = m[1];
+  s = s.replace(/^p=/, '');
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  var json = decodeURIComponent(escape(atob(s)));
+  return JSON.parse(json);
+}
+function parsePayloadInput(str) {
+  var s = String(str || '').trim();
+  if (!s) return null;
+  try { var o = JSON.parse(s); if (o && o.items) return o; } catch (e) {}
+  try { var o2 = decodePayload(s); if (o2 && o2.items) return o2; } catch (e2) {}
+  return null;
+}
+function batchIdOf(payload) {
+  var s = JSON.stringify(payload);
+  var h = 0;
+  for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+  return 'b' + Math.abs(h).toString(36) + '_' + payload.items.length;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { encodePayload: encodePayload, decodePayload: decodePayload, parsePayloadInput: parsePayloadInput, batchIdOf: batchIdOf };
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', function () {
+    var tabsEl = document.getElementById('tabs');
+    var listEl = document.getElementById('list');
+    var batchInfo = document.getElementById('batchInfo');
+    var emptyState = document.getElementById('emptyState');
+    var listWrap = document.getElementById('listWrap');
+    var pasteBox = document.getElementById('pasteBox');
+    var statusEmpty = document.getElementById('statusEmpty');
+    var progressText = document.getElementById('progressText');
+
+    var payload = null;
+    var activeUser = 0;
+    var done = {};
+    var doneKey = '';
+
+    function loadDone() {
+      done = {};
+      try { done = JSON.parse(localStorage.getItem(doneKey) || '{}') || {}; } catch (e) { done = {}; }
+    }
+    function saveDone() {
+      try { localStorage.setItem(doneKey, JSON.stringify(done)); } catch (e) {}
+    }
+    function kindLabel(it) {
+      if (it.kind === 'op') return 'UTAS BARU';
+      if (it.kind === 'chain') return 'RANTAI · KE-' + (it.step + 1);
+      return 'KOMEN';
+    }
+    function itemsFor(u) {
+      return payload.items.map(function (it, i) { return { it: it, i: i }; }).filter(function (x) { return x.it.u === u; });
+    }
+    function counts(u) {
+      var list = itemsFor(u);
+      var d = list.filter(function (x) { return done[x.i]; }).length;
+      return { total: list.length, done: d };
+    }
+    function renderTabs() {
+      tabsEl.innerHTML = '';
+      payload.users.forEach(function (u, i) {
+        var c = counts(i);
+        var b = document.createElement('button');
+        b.className = 'tab' + (i === activeUser ? ' active' : '');
+        b.innerHTML = '';
+        b.appendChild(document.createTextNode('@' + u + ' '));
+        var sm = document.createElement('small');
+        sm.textContent = c.done + '/' + c.total;
+        b.appendChild(sm);
+        b.addEventListener('click', function () { activeUser = i; renderTabs(); renderList(); });
+        tabsEl.appendChild(b);
+      });
+      tabsEl.hidden = false;
+    }
+    function renderList() {
+      listEl.innerHTML = '';
+      var list = itemsFor(activeUser);
+      if (!list.length) {
+        listEl.innerHTML = '<p class="empty">Tidak ada tugas untuk akun ini di paket ini.</p>';
+      }
+      list.forEach(function (x, n) {
+        var it = x.it;
+        var wrap = document.createElement('div');
+        wrap.className = 'item' + (done[x.i] ? ' done' : '');
+        var meta = document.createElement('div');
+        meta.className = 'meta';
+        var idx = document.createElement('span');
+        idx.className = 'idx';
+        idx.textContent = String(n + 1);
+        var badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = kindLabel(it);
+        meta.appendChild(idx);
+        meta.appendChild(badge);
+        if (it.gap) {
+          var g = document.createElement('span');
+          g.className = 'gap';
+          g.textContent = 'jeda ' + it.gap;
+          meta.appendChild(g);
+        }
+        wrap.appendChild(meta);
+        if (it.link) {
+          var a = document.createElement('a');
+          a.className = 'openlink';
+          a.href = it.link;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = 'Buka utas di Threads \u2197';
+          wrap.appendChild(a);
+        } else {
+          var nl = document.createElement('div');
+          nl.className = 'nolink';
+          nl.textContent = it.kind === 'op'
+            ? 'Utas baru — tulis dari aplikasi Threads, lalu salin teksnya di bawah.'
+            : 'Link utas menyusul — buka utas yang baru diposting OP, lalu salin teksnya di bawah.';
+          wrap.appendChild(nl);
+        }
+        var crow = document.createElement('div');
+        crow.className = 'crow';
+        var ctext = document.createElement('div');
+        ctext.className = 'ctext';
+        ctext.textContent = it.text;
+        var btnCopy = document.createElement('button');
+        btnCopy.className = 'btnCopy';
+        btnCopy.textContent = 'Salin';
+        btnCopy.addEventListener('click', function () {
+          function ok() {
+            btnCopy.textContent = 'Tersalin \u2713';
+            btnCopy.classList.add('ok');
+            setTimeout(function () { btnCopy.textContent = 'Salin'; btnCopy.classList.remove('ok'); }, 1500);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(it.text).then(ok, function () { fallback(); });
+          } else { fallback(); }
+          function fallback() {
+            var ta = document.createElement('textarea');
+            ta.value = it.text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); ok(); } catch (e) {}
+            ta.remove();
+          }
+        });
+        crow.appendChild(ctext);
+        crow.appendChild(btnCopy);
+        wrap.appendChild(crow);
+        var btnDone = document.createElement('button');
+        btnDone.className = 'btnDone' + (done[x.i] ? ' on' : '');
+        btnDone.textContent = done[x.i] ? '\u2713 Sudah diposting' : 'Tandai sudah diposting';
+        btnDone.addEventListener('click', function () {
+          done[x.i] = !done[x.i];
+          if (!done[x.i]) delete done[x.i];
+          saveDone();
+          renderTabs();
+          renderList();
+        });
+        wrap.appendChild(btnDone);
+        listEl.appendChild(wrap);
+      });
+      var total = payload.items.length;
+      var dAll = Object.keys(done).length;
+      progressText.textContent = 'Paket ini: ' + dAll + '/' + total + ' tugas ditandai selesai (di HP ini).';
+    }
+    function boot(p) {
+      payload = p;
+      activeUser = 0;
+      doneKey = 'xtp-portal-done-' + batchIdOf(payload);
+      loadDone();
+      var d = new Date(payload.created);
+      var dateStr = isNaN(d.getTime()) ? payload.created : d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      batchInfo.textContent = 'Paket ' + dateStr + ' · ' + payload.items.length + ' tugas · ' + payload.users.length + ' akun';
+      emptyState.hidden = true;
+      listWrap.hidden = false;
+      renderTabs();
+      renderList();
+    }
+    document.getElementById('btnLoad').addEventListener('click', function () {
+      var p = parsePayloadInput(pasteBox.value);
+      if (!p) { statusEmpty.textContent = 'Paket tidak dikenali. Tempel link portal lengkap atau payload dari generator.'; return; }
+      statusEmpty.textContent = '';
+      boot(p);
+    });
+    document.getElementById('btnResetDone').addEventListener('click', function () {
+      done = {};
+      saveDone();
+      renderTabs();
+      renderList();
+    });
+
+    var initial = null;
+    if (typeof window !== 'undefined' && window.__PORTAL_DATA__) {
+      initial = window.__PORTAL_DATA__;
+    } else if (window.location.hash) {
+      try { initial = decodePayload(window.location.hash); } catch (e) { initial = null; }
+      if (initial && !initial.items) initial = null;
+    }
+    if (initial) boot(initial);
+  });
+}
+</script>
+</body>
+</html>
