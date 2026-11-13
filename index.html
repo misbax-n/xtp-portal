@@ -57,7 +57,7 @@
   <div class="brand">
     <div class="logo">&#10003;</div>
     <div>
-      <h1>Portal Komen<span class="pill">OFFLINE</span></h1>
+      <h1>Portal Komen<span class="pill" id="modePill">OFFLINE</span></h1>
       <p id="batchInfo">Belum ada paket tugas.</p>
     </div>
   </div>
@@ -72,7 +72,7 @@
       <button class="primary" id="btnLoad">Muat paket</button>
     </div>
     <p class="status" id="statusEmpty"></p>
-    <p class="hint">Data paket tidak keluar dari perangkat ini. Tanda "selesai" tersimpan per HP.</p>
+    <p class="hint">Data paket tidak keluar dari perangkat ini. Tanda "selesai" tersimpan di HP ini; paket baru juga tersinkron antar-HP.</p>
   </section>
   <section id="listWrap" hidden>
     <div id="list"></div>
@@ -80,9 +80,10 @@
       <span class="hint" id="progressText" style="margin-top:0;"></span>
       <button id="btnResetDone">Reset tanda selesai</button>
     </div>
+    <p class="hint" id="syncStatus" style="margin-top:8px;"></p>
   </section>
 </main>
-<footer>Portal komen v1 &mdash; XTP &middot; Dibuat 13 Nov 2026</footer>
+<footer>Portal komen v2 &mdash; XTP &middot; Dibuat 14 Nov 2026</footer>
 <script>
 /*__EMBEDDED_DATA__*/
 function encodePayload(obj) {
@@ -113,9 +114,36 @@ function batchIdOf(payload) {
   for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
   return 'b' + Math.abs(h).toString(36) + '_' + payload.items.length;
 }
+function syncEventBody(batchId, itemIndex, isDone) {
+  return JSON.stringify({ b: batchId, k: itemIndex, d: isDone ? 1 : 0 });
+}
+function parseSyncEvent(text, batchId) {
+  try {
+    var o = JSON.parse(text);
+    if (!o || o.b !== batchId) return null;
+    if (typeof o.k !== 'number' || (o.d !== 0 && o.d !== 1)) return null;
+    return { key: o.k, done: o.d === 1 };
+  } catch (e) { return null; }
+}
+function applySyncEvents(doneObj, events, batchId, seenIds) {
+  var changed = false;
+  var maxTime = 0;
+  events.forEach(function (ev) {
+    if (!ev) return;
+    if (typeof ev.time === 'number' && ev.time > maxTime) maxTime = ev.time;
+    if (seenIds[ev.id]) return;
+    seenIds[ev.id] = true;
+    var p = parseSyncEvent(ev.message, batchId);
+    if (!p) return;
+    if (p.done) {
+      if (!doneObj[p.key]) { doneObj[p.key] = true; changed = true; }
+    } else if (doneObj[p.key]) { delete doneObj[p.key]; changed = true; }
+  });
+  return { changed: changed, maxTime: maxTime };
+}
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { encodePayload: encodePayload, decodePayload: decodePayload, parsePayloadInput: parsePayloadInput, batchIdOf: batchIdOf };
+  module.exports = { encodePayload: encodePayload, decodePayload: decodePayload, parsePayloadInput: parsePayloadInput, batchIdOf: batchIdOf, syncEventBody: syncEventBody, parseSyncEvent: parseSyncEvent, applySyncEvents: applySyncEvents };
 }
 
 if (typeof document !== 'undefined') {
@@ -128,11 +156,60 @@ if (typeof document !== 'undefined') {
     var pasteBox = document.getElementById('pasteBox');
     var statusEmpty = document.getElementById('statusEmpty');
     var progressText = document.getElementById('progressText');
+    var syncStatusEl = document.getElementById('syncStatus');
+    var modePill = document.getElementById('modePill');
 
     var payload = null;
     var activeUser = 0;
     var done = {};
     var doneKey = '';
+    var syncTopic = '';
+    var syncSince = 0;
+    var syncSeen = {};
+    var syncTimer = null;
+
+    function setSyncStatus(kind) {
+      if (!syncTopic) {
+        syncStatusEl.textContent = 'Paket ini tidak sinkron antar-HP (dibuat sebelum fitur sinkron).';
+      } else if (kind === 'loading') {
+        syncStatusEl.textContent = 'Sinkron antar-HP: memuat\u2026';
+      } else if (kind === 'ok') {
+        syncStatusEl.textContent = 'Sinkron antar-HP: aktif \u2014 tanda di HP lain muncul di sini.';
+      } else if (kind === 'error') {
+        syncStatusEl.textContent = 'Sinkron antar-HP: tidak terhubung \u2014 tanda hanya tersimpan di HP ini untuk sementara.';
+      }
+    }
+    function publishSync(itemIndex, isDone) {
+      if (!syncTopic || !payload) return;
+      fetch('https://ntfy.sh/' + encodeURIComponent(syncTopic), {
+        method: 'POST',
+        body: syncEventBody(batchIdOf(payload), itemIndex, isDone)
+      }).catch(function () {});
+    }
+    function pollSync() {
+      if (!syncTopic || !payload) return;
+      fetch('https://ntfy.sh/' + encodeURIComponent(syncTopic) + '/json?since=' + syncSince + '&poll=1')
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
+        })
+        .then(function (txt) {
+          var events = [];
+          txt.split('\n').forEach(function (line) {
+            if (!line.trim()) return;
+            try { var o = JSON.parse(line); if (o && o.event === 'message') events.push(o); } catch (e) {}
+          });
+          var r = applySyncEvents(done, events, batchIdOf(payload), syncSeen);
+          if (r.maxTime > 0) syncSince = Math.max(syncSince, r.maxTime - 1);
+          if (Object.keys(syncSeen).length > 500) syncSeen = {};
+          if (r.changed) { saveDone(); renderTabs(); renderList(); }
+          setSyncStatus('ok');
+        })
+        .catch(function () { setSyncStatus('error'); });
+    }
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) pollSync();
+    });
 
     function loadDone() {
       done = {};
@@ -251,6 +328,7 @@ if (typeof document !== 'undefined') {
           done[x.i] = !done[x.i];
           if (!done[x.i]) delete done[x.i];
           saveDone();
+          publishSync(x.i, !!done[x.i]);
           renderTabs();
           renderList();
         });
@@ -259,13 +337,18 @@ if (typeof document !== 'undefined') {
       });
       var total = payload.items.length;
       var dAll = Object.keys(done).length;
-      progressText.textContent = 'Paket ini: ' + dAll + '/' + total + ' tugas ditandai selesai (di HP ini).';
+      progressText.textContent = 'Paket ini: ' + dAll + '/' + total + ' tugas ditandai selesai ' + (syncTopic ? '(sinkron antar-HP).' : '(di HP ini).');
     }
     function boot(p) {
       payload = p;
       activeUser = 0;
       doneKey = 'xtp-portal-done-' + batchIdOf(payload);
       loadDone();
+      if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
+      syncTopic = String(p.syncTopic || '');
+      syncSince = 0;
+      syncSeen = {};
+      modePill.textContent = syncTopic ? 'SYNC' : 'OFFLINE';
       var d = new Date(payload.created);
       var dateStr = isNaN(d.getTime()) ? payload.created : d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
       batchInfo.textContent = 'Paket ' + dateStr + ' · ' + payload.items.length + ' tugas · ' + payload.users.length + ' akun';
@@ -273,6 +356,11 @@ if (typeof document !== 'undefined') {
       listWrap.hidden = false;
       renderTabs();
       renderList();
+      setSyncStatus(syncTopic ? 'loading' : 'off');
+      if (syncTopic) {
+        pollSync();
+        syncTimer = setInterval(pollSync, 20000);
+      }
     }
     document.getElementById('btnLoad').addEventListener('click', function () {
       var p = parsePayloadInput(pasteBox.value);
@@ -281,8 +369,10 @@ if (typeof document !== 'undefined') {
       boot(p);
     });
     document.getElementById('btnResetDone').addEventListener('click', function () {
+      var keys = Object.keys(done).map(function (k) { return Number(k); });
       done = {};
       saveDone();
+      keys.forEach(function (k) { publishSync(k, false); });
       renderTabs();
       renderList();
     });
