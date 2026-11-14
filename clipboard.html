@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Clipboard XTP">
+<meta name="theme-color" content="#4A7FB5">
+<title>Clipboard Link — XTP</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: #F7F7F8; color: #1C1C1E; }
+  header { background: #fff; border-bottom: 1px solid #E4E4E7; padding: 16px; position: sticky; top: 0; z-index: 10; }
+  .brand { max-width: 760px; margin: 0 auto; display: flex; gap: 12px; align-items: center; }
+  .logo { width: 38px; height: 38px; flex: none; border-radius: 11px; background: #4A7FB5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0; font-size: 13px; color: #8A8A8E; }
+  .pill { font: 11px/1 ui-monospace, Menlo, Consolas, monospace; background: #E8EFF7; color: #4A7FB5; border-radius: 999px; padding: 3px 8px; vertical-align: 2px; margin-left: 6px; letter-spacing: 0.04em; }
+  .pill.err { background: #FDECEA; color: #B3261E; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px 14px 40px; }
+  section { background: #fff; border: 1px solid #E4E4E7; border-radius: 18px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  input[type="url"] { width: 100%; font-size: 14px; padding: 11px 12px; border: 1px solid #D4D4D8; border-radius: 12px; background: #fff; color: #1C1C1E; }
+  input:focus { outline: none; border-color: #4A7FB5; }
+  button { font-size: 14px; padding: 10px 18px; border-radius: 999px; border: 1px solid #D4D4D8; background: #fff; color: #1C1C1E; cursor: pointer; }
+  button.primary { background: #4A7FB5; border-color: #4A7FB5; color: #fff; font-weight: 600; }
+  button:disabled { opacity: 0.55; }
+  button:active { transform: translateY(1px); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .row.between { justify-content: space-between; }
+  .hint { font-size: 12px; color: #8A8A8E; margin-top: 8px; }
+  .status { font-size: 13px; margin-top: 10px; min-height: 18px; color: #8A8A8E; }
+  .status.ok { color: #2E7D32; }
+  .status.err { color: #B3261E; }
+  .item { border: 1px solid #E4E4E7; border-radius: 16px; padding: 12px 14px; margin-bottom: 12px; background: #fff; }
+  .item.done { opacity: 0.55; }
+  .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .time { font-size: 12px; color: #8A8A8E; }
+  .urltext { font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; color: #3F3F46; background: #FAFAFA; border: 1px solid #F0F0F0; border-radius: 10px; padding: 8px 10px; word-break: break-all; margin-bottom: 10px; }
+  .btnCopy.ok { background: #E8EFF7; border-color: #4A7FB5; color: #4A7FB5; }
+  .btnDone.on { background: #4A7FB5; border-color: #4A7FB5; color: #fff; font-weight: 600; }
+  .empty { color: #8A8A8E; font-size: 13px; }
+  footer { text-align: center; font-size: 12px; color: #A1A1AA; padding: 0 14px 24px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">&#128203;</div>
+    <div>
+      <h1>Clipboard Link<span class="pill" id="modePill">OFFLINE</span></h1>
+      <p>Tempel link Threads &mdash; langsung masuk ke HP master.</p>
+    </div>
+  </div>
+</header>
+<main>
+  <section id="sendWrap">
+    <input type="url" id="urlInput" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Tempel link Threads di sini...">
+    <div class="row">
+      <button class="primary" id="btnSend">Kirim</button>
+    </div>
+    <p class="status" id="statusSend"></p>
+  </section>
+  <section id="inboxWrap">
+    <div class="row between" style="margin-top:0;">
+      <h2 style="margin:0;">Link masuk <span id="inboxCount" style="color:#8A8A8E;font-weight:400;"></span></h2>
+      <button id="btnRefresh">Muat ulang</button>
+    </div>
+    <div id="inboxList" style="margin-top:12px;"></div>
+    <div class="row">
+      <button class="primary" id="btnCopyAll">Salin semua link baru</button>
+      <button id="btnClear">Hapus semua dari HP ini</button>
+    </div>
+    <p class="status" id="statusInbox"></p>
+    <p class="hint">Link tersimpan di HP ini setelah diterima. "Sudah dikirim" hanya penanda di HP ini. Link yang sama dikirim dua kali hanya muncul sekali (yang terbaru).</p>
+  </section>
+</main>
+<footer>Clipboard Link v1.0 &mdash; XTP &middot; Dibuat 14 Nov 2026</footer>
+<script>
+var CLIP_TOPIC = 'xtp-portal-d4a542905456879a52e0bb34-link';
+var CLIP_MAX_ITEMS = 100;
+
+function cleanThreadsUrl(s) {
+  var t = String(s || '').trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+  if (!t || /\s/.test(t)) return '';
+  var m = t.match(/^https?:\/\/([^\/]+)/i);
+  if (!m) return '';
+  var host = m[1].toLowerCase();
+  if (host !== 'threads.com' && host !== 'threads.net' && !/\.threads\.com$/.test(host) && !/\.threads\.net$/.test(host)) return '';
+  return t;
+}
+function linkEventBody(url, ts) {
+  return JSON.stringify({ t: 'link', u: url, s: ts });
+}
+function parseLinkEvent(text) {
+  try {
+    var o = JSON.parse(text);
+    if (!o || o.t !== 'link') return null;
+    var url = cleanThreadsUrl(o.u);
+    if (!url) return null;
+    if (typeof o.s !== 'number' || !isFinite(o.s)) return null;
+    return { url: url, ts: o.s };
+  } catch (e) { return null; }
+}
+function mergeLinkEvents(existing, events, seenIds, clearedBefore) {
+  var items = existing.slice();
+  var byUrl = {};
+  items.forEach(function (it) { byUrl[it.url] = it; });
+  var changed = false;
+  var lastId = '';
+  var cutoff = clearedBefore || 0;
+  events.forEach(function (ev) {
+    if (!ev) return;
+    if (ev.id) lastId = ev.id;
+    if (ev.id && seenIds[ev.id]) return;
+    if (ev.id) seenIds[ev.id] = true;
+    var p = parseLinkEvent(ev.message);
+    if (!p) return;
+    if (p.ts <= cutoff) return;
+    var prev = byUrl[p.url];
+    if (prev) {
+      if (p.ts > prev.ts) {
+        prev.ts = p.ts;
+        changed = true;
+      }
+    } else {
+      var it = { id: ev.id || ('m' + p.ts + '_' + items.length), url: p.url, ts: p.ts, done: false };
+      items.push(it);
+      byUrl[p.url] = it;
+      changed = true;
+    }
+  });
+  items.sort(function (a, b) { return a.ts - b.ts; });
+  if (items.length > CLIP_MAX_ITEMS) {
+    items = items.slice(items.length - CLIP_MAX_ITEMS);
+    changed = true;
+  }
+  return { items: items, lastId: lastId, changed: changed };
+}
+function formatAllLinks(items, onlyPending) {
+  return items.filter(function (it) { return !onlyPending || !it.done; }).map(function (it) { return it.url; }).join('\n');
+}
+function formatLinkTime(ts) {
+  var d = new Date(ts * 1000);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { CLIP_TOPIC: CLIP_TOPIC, cleanThreadsUrl: cleanThreadsUrl, linkEventBody: linkEventBody, parseLinkEvent: parseLinkEvent, mergeLinkEvents: mergeLinkEvents, formatAllLinks: formatAllLinks, formatLinkTime: formatLinkTime };
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', function () {
+    var urlInput = document.getElementById('urlInput');
+    var btnSend = document.getElementById('btnSend');
+    var statusSend = document.getElementById('statusSend');
+    var inboxList = document.getElementById('inboxList');
+    var inboxCount = document.getElementById('inboxCount');
+    var statusInbox = document.getElementById('statusInbox');
+    var modePill = document.getElementById('modePill');
+
+    var INBOX_KEY = 'xtp-clip-inbox';
+    var CLEARED_KEY = 'xtp-clip-cleared-before';
+    var items = [];
+    try { items = JSON.parse(localStorage.getItem(INBOX_KEY) || '[]') || []; } catch (e) { items = []; }
+    var clearedBefore = 0;
+    try { clearedBefore = parseInt(localStorage.getItem(CLEARED_KEY) || '0', 10) || 0; } catch (e) {}
+    var cursor = 'all';
+    var seen = {};
+    var inboxState = 'loading';
+
+    function saveInbox() {
+      try { localStorage.setItem(INBOX_KEY, JSON.stringify(items)); } catch (e) {}
+    }
+    function refreshStatus() {
+      var pending = items.filter(function (it) { return !it.done; }).length;
+      inboxCount.textContent = items.length ? '(' + pending + ' baru / ' + items.length + ')' : '';
+      if (inboxState === 'ok') {
+        modePill.textContent = 'SYNC';
+        modePill.classList.remove('err');
+        statusInbox.textContent = 'Terhubung \u2014 link baru muncul otomatis di sini.';
+      } else if (inboxState === 'error') {
+        modePill.textContent = 'ERROR';
+        modePill.classList.add('err');
+        statusInbox.textContent = 'Tidak terhubung \u2014 daftar di bawah ini yang tersimpan di HP ini. Coba "Muat ulang".';
+      } else {
+        modePill.textContent = 'OFFLINE';
+        modePill.classList.remove('err');
+        statusInbox.textContent = 'Memuat\u2026';
+      }
+    }
+    function copyText(text, btn, doneLabel) {
+      function ok() {
+        if (!btn) return;
+        var old = btn.textContent;
+        btn.textContent = doneLabel || 'Tersalin \u2713';
+        btn.classList.add('ok');
+        setTimeout(function () { btn.textContent = old; btn.classList.remove('ok'); }, 1500);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok, function () { fallback(); });
+      } else { fallback(); }
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); ok(); } catch (e) {}
+        ta.remove();
+      }
+    }
+    function renderInbox() {
+      inboxList.innerHTML = '';
+      if (!items.length) {
+        inboxList.innerHTML = '<p class="empty">Belum ada link. Tempel link di kolom atas dari HP mana pun.</p>';
+      }
+      var ordered = items.slice().sort(function (a, b) { return b.ts - a.ts; });
+      ordered.forEach(function (it) {
+        var wrap = document.createElement('div');
+        wrap.className = 'item' + (it.done ? ' done' : '');
+        var meta = document.createElement('div');
+        meta.className = 'meta';
+        var time = document.createElement('span');
+        time.className = 'time';
+        time.textContent = formatLinkTime(it.ts);
+        meta.appendChild(time);
+        wrap.appendChild(meta);
+        var u = document.createElement('div');
+        u.className = 'urltext';
+        u.textContent = it.url;
+        wrap.appendChild(u);
+        var row = document.createElement('div');
+        row.className = 'row';
+        row.style.marginTop = '0';
+        var a = document.createElement('a');
+        a.href = it.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = 'Buka di Threads \u2197';
+        a.style.cssText = 'font-size:14px;padding:10px 18px;border-radius:999px;border:1px solid #D4D4D8;background:#fff;color:#1C1C1E;cursor:pointer;text-decoration:none;';
+        var btnCopy = document.createElement('button');
+        btnCopy.textContent = 'Salin';
+        btnCopy.addEventListener('click', function () { copyText(it.url, btnCopy); });
+        var btnDone = document.createElement('button');
+        btnDone.className = it.done ? 'on' : '';
+        btnDone.textContent = it.done ? '\u2713 Sudah dikirim' : 'Sudah dikirim ke Muse';
+        btnDone.addEventListener('click', function () {
+          it.done = !it.done;
+          saveInbox();
+          renderInbox();
+          refreshStatus();
+        });
+        row.appendChild(a);
+        row.appendChild(btnCopy);
+        row.appendChild(btnDone);
+        wrap.appendChild(row);
+        inboxList.appendChild(wrap);
+      });
+      refreshStatus();
+    }
+    function pollInbox() {
+      fetch('https://ntfy.sh/' + encodeURIComponent(CLIP_TOPIC) + '/json?since=' + encodeURIComponent(cursor) + '&poll=1')
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
+        })
+        .then(function (txt) {
+          var events = [];
+          txt.split('\n').forEach(function (line) {
+            if (!line.trim()) return;
+            try { var o = JSON.parse(line); if (o && o.event === 'message') events.push(o); } catch (e) {}
+          });
+          var r = mergeLinkEvents(items, events, seen, clearedBefore);
+          if (r.lastId) cursor = r.lastId;
+          if (Object.keys(seen).length > 500) seen = {};
+          if (r.changed) { items = r.items; saveInbox(); renderInbox(); }
+          inboxState = 'ok';
+          refreshStatus();
+        })
+        .catch(function () {
+          inboxState = 'error';
+          refreshStatus();
+        });
+    }
+    function postLink(body, attemptsLeft) {
+      return fetch('https://ntfy.sh/' + encodeURIComponent(CLIP_TOPIC), { method: 'POST', body: body })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        })
+        .catch(function (err) {
+          if (attemptsLeft > 1) {
+            return new Promise(function (resolve) { setTimeout(resolve, 2000); }).then(function () { return postLink(body, attemptsLeft - 1); });
+          }
+          throw err;
+        });
+    }
+    btnSend.addEventListener('click', function () {
+      var url = cleanThreadsUrl(urlInput.value);
+      if (!url) {
+        statusSend.textContent = 'Link tidak dikenali \u2014 tempel link Threads lengkap (https://www.threads.com/...).';
+        statusSend.className = 'status err';
+        return;
+      }
+      var body = linkEventBody(url, Math.floor(Date.now() / 1000));
+      btnSend.disabled = true;
+      btnSend.textContent = 'Mengirim\u2026';
+      statusSend.textContent = '';
+      statusSend.className = 'status';
+      postLink(body, 2).then(function () {
+        statusSend.textContent = 'Terkirim \u2713 \u2014 masuk ke HP master.';
+        statusSend.className = 'status ok';
+        urlInput.value = '';
+        pollInbox();
+      }).catch(function () {
+        statusSend.textContent = 'Gagal terkirim \u2014 cek internet, lalu tekan "Kirim" lagi. Linknya masih di kolom.';
+        statusSend.className = 'status err';
+      }).then(function () {
+        btnSend.disabled = false;
+        btnSend.textContent = 'Kirim';
+      });
+    });
+    document.getElementById('btnRefresh').addEventListener('click', function () { pollInbox(); });
+    document.getElementById('btnCopyAll').addEventListener('click', function () {
+      var ordered = items.slice().sort(function (a, b) { return b.ts - a.ts; });
+      var txt = formatAllLinks(ordered, true);
+      if (!txt) {
+        statusInbox.textContent = 'Tidak ada link baru untuk disalin (semua sudah ditandai terkirim, atau belum ada link).';
+        return;
+      }
+      copyText(txt, null);
+      statusInbox.textContent = 'Semua link baru tersalin \u2014 tinggal tempel ke chat.';
+    });
+    document.getElementById('btnClear').addEventListener('click', function () {
+      if (!window.confirm('Hapus semua link dari HP ini?')) return;
+      items = [];
+      clearedBefore = Math.floor(Date.now() / 1000);
+      try {
+        localStorage.setItem(CLEARED_KEY, String(clearedBefore));
+      } catch (e) {}
+      saveInbox();
+      renderInbox();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) pollInbox();
+    });
+
+    renderInbox();
+    pollInbox();
+    setInterval(pollInbox, 20000);
+  });
+}
+</script>
+</body>
+</html>
