@@ -81,9 +81,13 @@
       <button id="btnResetDone">Reset tanda selesai</button>
     </div>
     <p class="hint" id="syncStatus" style="margin-top:8px;"></p>
+    <div class="row">
+      <button class="primary" id="btnPosted">Sudah posting semua &mdash; kirim sinyal ke Muse</button>
+    </div>
+    <p class="status" id="signalStatus"></p>
   </section>
 </main>
-<footer>Portal komen v2.2 &mdash; XTP &middot; Dibuat 14 Nov 2026</footer>
+<footer>Portal komen v2.3 &mdash; XTP &middot; Diperbarui 16 Nov 2026</footer>
 <script>
 /*__EMBEDDED_DATA__*/
 function encodePayload(obj) {
@@ -420,6 +424,31 @@ if (typeof document !== 'undefined') {
       keys.forEach(function (k) { queueSync(k, false); });
       renderTabs();
       renderList();
+    });
+    var btnPosted = document.getElementById('btnPosted');
+    var signalStatus = document.getElementById('signalStatus');
+    var SIGNAL_URL = 'https://xtp-posted-signal.josgantengngg.workers.dev/';
+    btnPosted.addEventListener('click', function () {
+      if (!payload) return;
+      var total = payload.items.length;
+      var dAll = Object.keys(done).length;
+      btnPosted.disabled = true;
+      signalStatus.textContent = 'Mengirim sinyal\u2026';
+      fetch(SIGNAL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch: batchIdOf(payload), done: dAll, total: total, users: payload.users, clientTs: Date.now() })
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function () {
+        var now = new Date();
+        signalStatus.textContent = 'Terkirim \u2713 ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' (' + dAll + '/' + total + ' tugas) \u2014 Muse akan buatkan jadwal berikutnya.';
+        btnPosted.disabled = false;
+      }).catch(function () {
+        signalStatus.textContent = 'Gagal terkirim \u2014 cek koneksi, lalu tekan lagi.';
+        btnPosted.disabled = false;
+      });
     });
 
     var initial = null;
